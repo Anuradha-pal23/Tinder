@@ -1,18 +1,17 @@
 const express=require('express');
 const app=express();
 
-// app.use("/",(req,res)=>{
-//     res.send("hello");
-// })
-
-app.use("/hello",(req,res)=>{
-    res.send("welocme to express")
+app.get('/user',(req,res)=>{
+    res.send("Anuradha pal")
 });
 
-app.use("/test",(req,res)=>{
-    res.send("hellooooo.....")
+app.post("/user",(req,res)=>{
+    res.send("data created sucessfully");
 });
 
+app.delete("/user",(req,res)=>{
+    res.send("data deleted...")
+})
 app.listen(7000,()=>{
     console.log("server started at 70000...........")
 });
