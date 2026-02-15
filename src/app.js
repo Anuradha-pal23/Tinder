@@ -1,81 +1,153 @@
-const express=require('express');
+const express = require('express');
 const { authAdmin, userAuth } = require('./middlewares/auth');
-const app=express();
-const connectDb=require('./config/ConnectDb');
-const User=require("./models/users")
+const app = express();
+const connectDb = require('./config/ConnectDb');
+const User = require("./models/users");
+const validate = require('./utils/validator');
+const bcrypt = require("bcrypt");
 
-app.use(express.json()) 
+app.use(express.json());
+
+
+// ================= SIGNUP =================
 
 app.post("/signup", async (req, res) => {
   try {
-    const user = new User(req.body);
+    const { firstName, lastName, emailId, password, age, skills } = req.body;
+
+    // check existing email
+    const existingUser = await User.findOne({ emailId });
+    if (existingUser) {
+      return res.status(400).send("Email already exists");
+    }
+
+    // validate data (it throws error if invalid)
+    validate(req.body);
+
+    // hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // create user
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: hashedPassword,
+      age,
+      skills,
+      gender:req.body.gender,
+    });
+
     const savedUser = await user.save();
 
     res.status(201).json({
-      message: "user created successfully",
+      message: "User created successfully",
       data: savedUser,
     });
+
   } catch (error) {
     console.log(error.message);
-    res.status(400).send("something went wrong");
+    res.status(400).send(error.message);
+  }
+});
+
+//====================user login====================
+
+app.post("/login",async(req,res)=>{
+try {
+    const{emailId,password}=req.body;
+
+    const user=await User.findOne({emailId:emailId})
+    if(!user){
+        throw new Error("invalid credential");
+    }
+    const passwordValidate=bcrypt.compare(password,user.password)
+
+    if(passwordValidate){
+        res.send("login successfull");
+    }
+    else{
+        throw new Error("invalid credential");
+    }
+} catch (error) {
+    res.status(400).send("user not exists")
+}
+})
+
+// ================= GET USER BY EMAIL =================
+
+app.get("/user", async (req, res) => {
+  const userEmail = req.query.emailId;
+
+  try {
+    const user = await User.findOne({ emailId: userEmail });
+
+    if (!user) {
+      return res.status(404).send("user not found");
+    }
+
+    res.send(user);
+
+  } catch (error) {
+    res.status(400).send(error.message);
   }
 });
 
 
+// ================= DELETE USER =================
 
-//get user by email
-app.get("/user",async(req,res)=>{
-    const userEmail=req.body.emailId;
+app.delete("/user/:id", async (req, res) => {
+  const userId = req.params.id;
 
-    try {
-        console.log(userEmail);
-        const user=await User.findOne({emailId:userEmail});
-        if(!user){
-            res.status(404).send("user not found")
-        }
-        else{
-            res.send(user)
-        }
-    } catch (error) {
-          res.status(400).send("something wrong");
-    }
-})
-
-//delete by id
-app.delete("/user/:id",async(req,res)=>{
-const userId=req.params.id;
-try {
-    const user=await User.findByIdAndDelete(userId);
+  try {
+    await User.findByIdAndDelete(userId);
     res.send("user deleted successfully");
-} catch (error) {
-    res.status(404).send("something went wrong");
-}
-})
-
-//update data by user
-app.patch("/user",async(req,res)=>{
-    const userId=req.body.userId;
-    const data=req.body;
-    try {
-        const user=await User.findByIdAndUpdate({_id:userId},data,{
-            returnDocument:"after",
-            runValidators:true,
-        });
-        console.log(user);
-        res.send("user updated successfully");
-}
-catch(error){
-    res.status(400).send("something went wrong");
-}
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
 });
 
-connectDb().
-then(()=>{
-    console.log("database connected")
-    app.listen(7000,()=>{
-    console.log("server started at 70000...........")
+
+// ================= UPDATE USER =================
+
+app.patch("/user", async (req, res) => {
+  const userId = req.body.userId;
+  const data = req.body;
+
+  try {
+
+    // ❌ prevent email update
+    if (data.emailId) {
+      return res.status(400).send("Email cannot be updated");
+    }
+
+    const user = await User.findByIdAndUpdate(
+      { _id: userId },
+      data,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    console.log(user);
+    res.send("user updated successfully");
+
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
 });
-}).
-catch((error)=>{
-    console.log("database not connnected")
-});
+
+
+// ================= DB CONNECTION =================
+
+connectDb()
+  .then(() => {
+    console.log("database connected");
+    app.listen(7000, () => {
+      console.log("server started at 7000...........");
+    });
+  })
+  .catch(() => {
+    console.log("database not connected");
+  });

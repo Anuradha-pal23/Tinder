@@ -1,4 +1,5 @@
 const mongoose=require('mongoose');
+const validator=require("validator");
 
 const userSchema=new mongoose.Schema({
     userId:{
@@ -8,6 +9,8 @@ const userSchema=new mongoose.Schema({
     firstName:{
         type:String,
         required:true,
+        minLength:3,
+        maxLength:30,
     },
     lastName:{
         type:String
@@ -22,6 +25,8 @@ const userSchema=new mongoose.Schema({
                 throw new Error("email is not valid");
             }
         }
+       
+
     },
     password:{
         type:String,
@@ -29,6 +34,9 @@ const userSchema=new mongoose.Schema({
         validate(value){
             if(value.length<6){
                 throw new Error("password must be atleast 6 character");
+            }
+            if(!validator.isStrongPassword(value)){
+                throw new Error("password must contain at least one uppercase letter, one lowercase letter, one number and one symbol");
             }
         }
     },
@@ -39,6 +47,15 @@ const userSchema=new mongoose.Schema({
             if(value<18){
                 throw new Error("age must be atleast 18");
                 
+            }
+        }
+    },
+    skills:{
+        type:[String],
+        required:true,
+        validate(value){
+            if(value.length<5){
+                throw new Error("atleast 5 skills are required");
             }
         }
     },
