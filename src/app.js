@@ -1,12 +1,15 @@
 const express = require('express');
-const { authAdmin, userAuth } = require('./middlewares/auth');
+const { authAdmin,userAuth } = require('./middlewares/auth');
 const app = express();
 const connectDb = require('./config/ConnectDb');
 const User = require("./models/users");
 const validate = require('./utils/validator');
 const bcrypt = require("bcrypt");
+const cookieParser=require("cookie-parser");
+const jwt=require("jsonwebtoken");
 
 app.use(express.json());
+app.use(cookieParser());
 
 
 // ================= SIGNUP =================
@@ -53,27 +56,51 @@ app.post("/signup", async (req, res) => {
 
 //====================user login====================
 
-app.post("/login",async(req,res)=>{
-try {
-    const{emailId,password}=req.body;
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
 
-    const user=await User.findOne({emailId:emailId})
-    if(!user){
-        throw new Error("invalid credential");
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      throw new Error("Invalid credentials");
     }
-    const passwordValidate=bcrypt.compare(password,user.password)
 
-    if(passwordValidate){
-        res.send("login successfull");
+    const passwordValidate = await bcrypt.compare(password, user.password);
+
+    if (!passwordValidate) {
+      throw new Error("Invalid credentials");
     }
-    else{
-        throw new Error("invalid credential");
-    }
-} catch (error) {
-    res.status(400).send("user not exists")
-}
+
+    // create JWT token
+    const token = jwt.sign({ userId: user._id }, "secretkey",{expiresIn:"1d"});
+
+    // send token in cookie
+    res.cookie("token", token, { httpOnly: true, expires: new Date(Date.now() + 24 * 60 * 60 * 1000) });
+    res.send("login successful");
+
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+});
+
+
+//==================== profile ==========================
+app.get("/profile",userAuth, async (req, res) => {
+  try {
+    const user = req.user;
+console.log(user)
+    res.send(user);
+
+  } catch (error) {
+    console.log(error)
+    res.status(401).send("invalid token");
+  }
+});
+
+app.post("/sendConnectionrequest",userAuth,async(req,res)=>{
+  const user=req.user;
+  res.send(user.firstName  +""+"connection sent successfully")
 })
-
 // ================= GET USER BY EMAIL =================
 
 app.get("/user", async (req, res) => {

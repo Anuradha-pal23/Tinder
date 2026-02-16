@@ -12,9 +12,9 @@ const validate = (data) => {
   else if (!validator.isEmail(emailId)) {
     throw new Error("email is not valid");
   }
-  else if (!validator.isStrongPassword(password)) {
-    throw new Error("password is not strong");
-  }
+  // else if (!validator.isStrongPassword(password)) {
+  //   throw new Error("password is not strong");
+  // }
 };
 
 module.exports = validate;
